@@ -1,0 +1,28 @@
+{
+  "auth": "zef:lucs",
+  "authors": [
+    "Luc St-Louis <lucs@pobox.com>"
+  ],
+  "build-depends": [
+  ],
+  "depends": [
+  ],
+  "description": "Print debugging info during development",
+  "license": "Artistic-2.0",
+  "name": "Debugging::Tool",
+  "provides": {
+    "Debugging::Tool": "lib/Debugging/Tool.rakumod"
+  },
+  "resources": [
+  ],
+  "source-url": "git://github.com/lucs/Debugging-Tool.git",
+  "tags": [
+    "debug",
+    "devel"
+  ],
+  "test-depends": [
+      "Test::Selector",
+      "File::Temp"
+  ],
+  "version": "0.1.0"
+}

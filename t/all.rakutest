@@ -1,0 +1,236 @@
+use Test;
+use Test::Selector;
+use File::Temp;
+
+# --------------------------------------------------------------------
+sub run-code ($code-fName) {
+    my @cmd =
+        $*EXECUTABLE-NAME,
+        '-I',
+        $?FILE.IO.parent.child('lib').Str,
+        $code-fName,
+    ;
+    return run @cmd, :err, :out;
+}
+
+# --------------------------------------------------------------------
+t t0 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new: 1;
+        $dt.printr: 'A message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, 'A message.';
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
+t t1 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new: 1;
+        $dt.put: 'A message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is
+        $proc.out.slurp,
+        "L-3     ‹A message.› …/{$code-fName.IO.basename}\n",
+    ;
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
+t t2 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    my ($out-fName, Any) = tempfile;
+    $code-fHandle.spurt: q:c:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new: {"'$out-fName'"};
+        $dt.print: 'A message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, '';
+    is $proc.err.slurp, '';
+    is
+        $out-fName.IO.slurp,
+        "L-3     ‹A message.› …/{$code-fName.IO.basename}",
+    ;
+}
+
+# --------------------------------------------------------------------
+t t3 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new;
+        $dt.print: 'Unprinted message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, '';
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
+t t4 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new: 1;
+        $dt.printr: 'A message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, "A message.";
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
+t t5 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        %*ENV<DEBUGGING_TOOL_TO> = 2;
+        my $dt = Debugging::Tool.new;
+        $dt.put: 'A message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is
+        $proc.err.slurp,
+        "L-4     ‹A message.› …/{$code-fName.IO.basename}\n",
+    ;
+    is $proc.out.slurp, '';
+}
+
+# --------------------------------------------------------------------
+t t6 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new:
+            1,
+            -> $msg, Any {my $m = $msg; $m .= uc},
+        ;
+        $dt.print: 'A message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, 'A MESSAGE.';
+}
+
+# --------------------------------------------------------------------
+t t7 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new:
+            1,
+            sub ($msg, Any) {return S:g/E/3/ given $msg.uc},
+        ;
+        $dt.print: 'Another message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, 'ANOTH3R M3SSAG3.';
+    
+}
+
+# --------------------------------------------------------------------
+t t8 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new:
+            1,
+            sub ($msg is copy, $callframe) {
+                $msg .= substr(0, 3);
+                my $filename = $callframe.file.IO.basename;
+                return "$filename, L-{$callframe.line}: $msg";
+            };
+        $dt.print: 'A message.';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, "{$code-fName.IO.basename}, L-9: A m";
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
+t t9 => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new(
+            1,
+            sub (Any, $callframe) {
+                state $n = 0;
+                $n++ ~ " L-{$callframe.line} • ";
+            },
+        );
+        sub just-print () { $dt.print }
+        $dt.print: "Ignore this message, eh.";
+        for ^2 { just-print };
+        $dt.print;
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, "0 L-10 • 1 L-9 • 2 L-9 • 3 L-12 • ";
+}
+
+# --------------------------------------------------------------------
+t ta => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        CATCH {
+            when Debugging::Tool::XCantPrint {
+                note $_.message;
+            }
+        }
+        my $dt = Debugging::Tool.new: '/cant/open/this';
+        $dt.print;
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, '';
+    like $proc.err.slurp, / 'Failed to open' .* '/cant/open/this' /;
+}
+
+# --------------------------------------------------------------------
+t tb => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new:
+            1,
+            sub ($msg is copy, Any) {
+                return "I don't want to see it!" if $msg ~~ / 'Error:' /;
+                $msg .= uc;
+            },
+        ;
+        $dt.print: 'No error.';
+        $dt.print: 'Oh no! Error: (just kidding!).';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, "NO ERROR.I don't want to see it!"; 
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
+t tc => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new: 1;
+        $dt.printr: 'a';
+        $dt.pause;
+        $dt.printr: "Don't print this one.";
+        $dt.resume;
+        $dt.printr: 'b';
+        $dt._printr: "Don't print this either.";
+        $dt.printr: 'c';
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, 'abc';
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
+done-testing;
+
