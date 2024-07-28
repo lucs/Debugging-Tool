@@ -106,12 +106,16 @@ If your formatter is not interested in using either or both of those arguments, 
         )
 
             # This is the code of the default formatter.
-        -> $msg, $callframe {
+        sub ($msg, $callframe) {
+                # The callframe 'file' annotation sometimes
+                # appends the parenthesized name of the module to
+                # the file name, so we remove it here.
+            (my $filename = $callframe.file) ~~ s/ \s+ '(' \S+ ')' $//;
             sprintf(
                 "L-%-5d ‹%s› …/%s",
                 $callframe.line,
                 $msg,
-                $callframe.file.IO.basename,
+                $filename.IO.basename,
             );
         }
 

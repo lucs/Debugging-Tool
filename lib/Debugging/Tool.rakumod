@@ -20,11 +20,15 @@ method new ($destination?, Block $formatter?) {
         :$dst-io,
         :formatter(
             $formatter // sub ($msg, $callframe) {
+                    # The callframe 'file' annotation sometimes
+                    # appends the parenthesized name of the module to
+                    # the file name, so we remove it here.
+                (my $filename = $callframe.file) ~~ s/ \s+ '(' \S+ ')' $//;
                 sprintf(
                     "L-%-5d ‹%s› …/%s",
                     $callframe.line,
                     $msg,
-                    $callframe.file.IO.basename,
+                    $filename.IO.basename,
                 );
             }
         ),
