@@ -1,5 +1,8 @@
 Revision history for Debugging-Tool
 
+0.1.2 2024-07-28T17:16:43-04:00
+    - Fix 'printf' bug.
+
 0.1.1 2024-07-28T00:02:14-04:00
     - Remove module name trailing file name in default formatter.
 
