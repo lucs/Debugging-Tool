@@ -232,5 +232,21 @@ t tc => {
 }
 
 # --------------------------------------------------------------------
+t td => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new:
+            1,
+            sub ($msg, Any) { return $msg }
+        ;
+        $dt.printf: "a %d", 42;
+    EoC
+    my $proc = run-code $code-fName;
+    is $proc.out.slurp, "a 42";
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
 done-testing;
 

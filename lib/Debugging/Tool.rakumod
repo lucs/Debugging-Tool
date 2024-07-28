@@ -62,7 +62,7 @@ method !output ($routine-name, $sleep, *@str) {
 
     my $msg = do given $prn-func {
         when 'print' | 'put' { @str.map({ $_ // $_.WHAT.Str}).join }
-        when 'printf' { sprintf @str }
+        when 'printf' { sprintf |@str }
         when 'say' { @str.map({ $_ // $_.WHAT.gist}).join }
     };
 
