@@ -1,5 +1,8 @@
 Revision history for Debugging-Tool
 
+0.1.1 2024-07-28T00:02:14-04:00
+    - Remove module name trailing file name in default formatter.
+
 0.1.0 2024-07-21T17:19:08-04:00
     - Initial release.
 
