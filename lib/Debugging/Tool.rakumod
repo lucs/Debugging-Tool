@@ -1,4 +1,4 @@
-unit class Debugging::Tool:ver<0.1.2>:auth<zef:lucs>;
+unit class Debugging::Tool:ver<0.2.0>:auth<zef:lucs>;
 
 has $!dst-io;
 has Block $!formatter;

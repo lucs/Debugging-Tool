@@ -1,5 +1,9 @@
 Revision history for Debugging-Tool
 
+0.2.0 2024-08-03T11:55:19-04:00
+    - Completely reworked the printing methods. Simpler, more logical,
+      easier to understand, remember, and use.
+
 0.1.2 2024-07-28T17:16:43-04:00
     - Fix 'printf' bug.
 
