@@ -4,43 +4,68 @@ use File::Temp;
 
 # --------------------------------------------------------------------
 sub run-code ($code-fName) {
-    my @cmd =
-        $*EXECUTABLE-NAME,
-        '-I',
-        $?FILE.IO.parent.child('lib').Str,
-        $code-fName,
-    ;
-    return run @cmd, :err, :out;
+    return run $*EXECUTABLE-NAME, $code-fName, :err, :out;
 }
 
 # --------------------------------------------------------------------
-t t0 => {
-    my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
-        use Debugging::Tool;
-        my $dt = Debugging::Tool.new: 1;
-        $dt.printr: 'A message.';
-    EoC
-    my $proc = run-code $code-fName;
-    is $proc.out.slurp, 'A message.';
-    is $proc.err.slurp, '';
+sub tcase (
+    $test-id,
+    $method,
+    $expec is copy,
+) {
+    t $test-id => {
+        my $invoc = "\$dt.$method: 'msg %s %d', Baz.new, '42';";
+        my ($code-fName, $code-fHandle) = tempfile;
+       # note "RAKULIB <%*ENV<RAKULIB>>";
+        $code-fHandle.spurt(q:to/EoC/ ~ $invoc)
+            use Debugging::Tool;
+            my $dt = Debugging::Tool.new: 1;
+            class Baz {
+                method Str  { 'Baz' }
+                method gist { 'bAZ' }
+            }
+            EoC
+        ;
+        $expec ~~ s/fName/{$code-fName.IO.basename}/;
+        my $proc = run-code $code-fName;
+        is $proc.out.slurp, $expec;
+        is $proc.err.slurp, '';
+    }
 }
 
-# --------------------------------------------------------------------
-t t1 => {
-    my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
-        use Debugging::Tool;
-        my $dt = Debugging::Tool.new: 1;
-        $dt.put: 'A message.';
-    EoC
-    my $proc = run-code $code-fName;
-    is
-        $proc.out.slurp,
-        "L-3     ‹A message.› …/{$code-fName.IO.basename}\n",
-    ;
-    is $proc.err.slurp, '';
-}
+tcase 'p1', 'put',     "L-7     ‹msg %s %dBaz42› …/fName\n";
+tcase 'p2', 'putn',    "L-7     ‹msg %s %dBaz42› …/fName";
+tcase 'p3', 'putf',    "L-7     ‹msg Baz 42› …/fName\n";
+tcase 'p4', 'putfn',   "L-7     ‹msg Baz 42› …/fName";
+tcase 'p5', '_put',    '';
+tcase 'p6', '_putn',   '';
+tcase 'p7', '_putf',   '';
+tcase 'p8', '_putfn',  '';
+tcase 'pa', 'put_',    "msg %s %dBaz42\n";
+tcase 'pb', 'putn_',   "msg %s %dBaz42";
+tcase 'pc', 'putf_',   "msg Baz 42\n";
+tcase 'pd', 'putfn_',  "msg Baz 42";
+tcase 'pe', '_put_',   '';
+tcase 'pf', '_putn_',  '';
+tcase 'pg', '_putf_',  '';
+tcase 'ph', '_putfn_', '';
+
+tcase 's1', 'say',     "L-7     ‹msg %s %dbAZ42› …/fName\n";
+tcase 's2', 'sayn',    "L-7     ‹msg %s %dbAZ42› …/fName";
+tcase 's3', 'sayf',    "L-7     ‹msg bAZ 42› …/fName\n";
+tcase 's4', 'sayfn',   "L-7     ‹msg bAZ 42› …/fName";
+tcase 's5', '_say',    '';
+tcase 's6', '_sayn',   '';
+tcase 's7', '_sayf',   '';
+tcase 's8', '_sayfn',  '';
+tcase 'sa', 'say_',    "msg %s %dbAZ42\n";
+tcase 'sb', 'sayn_',   "msg %s %dbAZ42";
+tcase 'sc', 'sayf_',   "msg bAZ 42\n";
+tcase 'sd', 'sayfn_',  "msg bAZ 42";
+tcase 'se', '_say_',   '';
+tcase 'sf', '_sayn_',  '';
+tcase 'sg', '_sayf_',  '';
+tcase 'sh', '_sayfn_', '';
 
 # --------------------------------------------------------------------
 t t2 => {
@@ -49,14 +74,14 @@ t t2 => {
     $code-fHandle.spurt: q:c:to/EoC/;
         use Debugging::Tool;
         my $dt = Debugging::Tool.new: {"'$out-fName'"};
-        $dt.print: 'A message.';
+        $dt.put: 'A message.';
     EoC
     my $proc = run-code $code-fName;
     is $proc.out.slurp, '';
     is $proc.err.slurp, '';
     is
         $out-fName.IO.slurp,
-        "L-3     ‹A message.› …/{$code-fName.IO.basename}",
+        "L-3     ‹A message.› …/{$code-fName.IO.basename}\n",
     ;
 }
 
@@ -66,23 +91,10 @@ t t3 => {
     $code-fHandle.spurt: q:to/EoC/;
         use Debugging::Tool;
         my $dt = Debugging::Tool.new;
-        $dt.print: 'Unprinted message.';
+        $dt.put: 'Unprinted message.';
     EoC
     my $proc = run-code $code-fName;
     is $proc.out.slurp, '';
-    is $proc.err.slurp, '';
-}
-
-# --------------------------------------------------------------------
-t t4 => {
-    my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
-        use Debugging::Tool;
-        my $dt = Debugging::Tool.new: 1;
-        $dt.printr: 'A message.';
-    EoC
-    my $proc = run-code $code-fName;
-    is $proc.out.slurp, "A message.";
     is $proc.err.slurp, '';
 }
 
@@ -112,10 +124,11 @@ t t6 => {
             1,
             -> $msg, Any {my $m = $msg; $m .= uc},
         ;
-        $dt.print: 'A message.';
+        $dt.put: 'A message.';
     EoC
     my $proc = run-code $code-fName;
-    is $proc.out.slurp, 'A MESSAGE.';
+    is $proc.out.slurp, "A MESSAGE.\n";
+    is $proc.err.slurp, '';
 }
 
 # --------------------------------------------------------------------
@@ -127,11 +140,11 @@ t t7 => {
             1,
             sub ($msg, Any) {return S:g/E/3/ given $msg.uc},
         ;
-        $dt.print: 'Another message.';
+        $dt.putn: 'Another message.';
     EoC
     my $proc = run-code $code-fName;
     is $proc.out.slurp, 'ANOTH3R M3SSAG3.';
-    
+    is $proc.err.slurp, '';
 }
 
 # --------------------------------------------------------------------
@@ -146,7 +159,7 @@ t t8 => {
                 my $filename = $callframe.file.IO.basename;
                 return "$filename, L-{$callframe.line}: $msg";
             };
-        $dt.print: 'A message.';
+        $dt.putn: 'A message.';
     EoC
     my $proc = run-code $code-fName;
     is $proc.out.slurp, "{$code-fName.IO.basename}, L-9: A m";
@@ -165,13 +178,14 @@ t t9 => {
                 $n++ ~ " L-{$callframe.line} • ";
             },
         );
-        sub just-print () { $dt.print }
-        $dt.print: "Ignore this message, eh.";
-        for ^2 { just-print };
-        $dt.print;
+        sub just-putn () { $dt.putn }
+        $dt.putn: "This message won't be printed, eh.";
+        for ^2 { just-putn };
+        $dt.putn;
     EoC
     my $proc = run-code $code-fName;
     is $proc.out.slurp, "0 L-10 • 1 L-9 • 2 L-9 • 3 L-12 • ";
+    is $proc.err.slurp, '';
 }
 
 # --------------------------------------------------------------------
@@ -185,7 +199,7 @@ t ta => {
             }
         }
         my $dt = Debugging::Tool.new: '/cant/open/this';
-        $dt.print;
+        $dt.put;
     EoC
     my $proc = run-code $code-fName;
     is $proc.out.slurp, '';
@@ -204,11 +218,11 @@ t tb => {
                 $msg .= uc;
             },
         ;
-        $dt.print: 'No error.';
-        $dt.print: 'Oh no! Error: (just kidding!).';
+        $dt.putn: 'No error.';
+        $dt.put: 'Oh no! Error: (just kidding!).';
     EoC
     my $proc = run-code $code-fName;
-    is $proc.out.slurp, "NO ERROR.I don't want to see it!"; 
+    is $proc.out.slurp, "NO ERROR.I don't want to see it!\n"; 
     is $proc.err.slurp, '';
 }
 
@@ -218,16 +232,16 @@ t tc => {
     $code-fHandle.spurt: q:to/EoC/;
         use Debugging::Tool;
         my $dt = Debugging::Tool.new: 1;
-        $dt.printr: 'a';
+        $dt.putn_: 'a';
         $dt.pause;
-        $dt.printr: "Don't print this one.";
+        $dt.putn_: "Don't print this one.";
         $dt.resume;
-        $dt.printr: 'b';
-        $dt._printr: "Don't print this either.";
-        $dt.printr: 'c';
+        $dt.putn_: 'b';
+        $dt._put: "Don't print this either.";
+        $dt.put_: 'c';
     EoC
     my $proc = run-code $code-fName;
-    is $proc.out.slurp, 'abc';
+    is $proc.out.slurp, "abc\n";
     is $proc.err.slurp, '';
 }
 
@@ -240,10 +254,26 @@ t td => {
             1,
             sub ($msg, Any) { return $msg }
         ;
-        $dt.printf: "a %d", 42;
+        $dt.putf: "a %d", 42;
     EoC
     my $proc = run-code $code-fName;
-    is $proc.out.slurp, "a 42";
+    is $proc.out.slurp, "a 42\n";
+    is $proc.err.slurp, '';
+}
+
+# --------------------------------------------------------------------
+t te => {
+    my ($code-fName, $code-fHandle) = tempfile;
+    $code-fHandle.spurt: q:to/EoC/;
+        use Debugging::Tool;
+        my $dt = Debugging::Tool.new: 1;
+        $dt.putfn: "a %d", 42;
+    EoC
+    my $proc = run-code $code-fName;
+    is
+        $proc.out.slurp,
+        "L-3     ‹a 42› …/{$code-fName.IO.basename}",
+    ;
     is $proc.err.slurp, '';
 }
 

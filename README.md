@@ -17,7 +17,7 @@ SUMMARY
 
 ### Constructor
 
-The constructor specifies where to print and how to format the message you print:
+The constructor specifies where to print and how to format the messages you print:
 
         method new (
             $destination?,
@@ -34,40 +34,43 @@ Valid values for `$destination` are:
 
 If `$destination` is not specified or is `Any`, the program will check to see if the `DEBUGGING_TOOL_TO` envvar is set. If it is, it will use that value, otherwise the instance's printing methods will do nothing.
 
+Setting `DEBUGGING_TOOL_TO` to a given terminal may be the most useful way to use this module, as your debugging messages won't be interleaved with your program's actual output.
+
 The `$formatter` block may be applied to the message that is to be printed. If not specified but needed, the default one will be used, resulting in strings that look like this:
 
         «L-⟨line number⟩ ‹⟨message⟩› …/⟨file⟩»
 
 ### Printing methods
 
-These methods build a message to print from `@str` elements. They work similarly to the Raku `print`, `printf`, `put`, and `say` routines, but may apply the instance's `$formatter` before printing. They may also sleep a while after printing:
+The basic printing methods are:
 
-        method ❲
-             print  ∣  printf   ∣  put   ∣  say  ∣
-             printr ∣  printfr  ∣  putr  ∣  sayr ∣
-            _print  ∣ _printf   ∣ _put   ∣ _say  |
-            _printr ∣ _printfr  ∣ _putr  ∣ _sayr
-        ❳ (
-            *@str,
+        put putf putn putfn
+        say sayf sayn sayfn
+
+All have the same structure and build a message to print from their `@elems` argument:
+
+        method ⟨as above, and more⟩ (
+            *@elems,
             Real :s($sleep) where * >= 0,
-        )
+        ) {⋯}
 
-Here's the difference between them:
+Half of the printing method names start with 'put', and half with 'say'. Before using `@elems` to build the message to print, those that start with 'put' will apply `.Str` to all its elements, and those that start with 'say' will apply `.gist`.
 
-                                         Apply       Then append
-                           ‹@str›        $formatter  newline
-                           -----------   ----------  -----------
-        print  / printr  : Concat        Yes/No      No/No
-        printf / printfr : ‹sprintf()›   Yes/No      No/No
-        put    / putr    : Concat .Str   Yes/No      Yes/Yes
-        say    / sayr    : Concat .gist  Yes/No      Yes/Yes
+Plain `put` and `say` simply concatenate the `@elems` elements and make that the message that they will display. Note that a newline will be appended to the printed string in both cases.
 
-The underscore-prefixed ones simply ignore their arguments:
+If 'f' is added to the name, the method will instead interpret `@elems` as a list of arguments (after applying `.Str` or `.gist` n'est-ce pas) to be passed to `sprintf()` to build the message to display.
 
-        _print   _printr
-        _printf  _printfr
-        _put     _putr
-        _say     _sayr
+If 'n' is added to the name, no newline will be added to what is to be printed.
+
+Both 'f' and 'n' can be added (in that order) to either 'put' or 'say' to obtain both effects.
+
+There are also variations of the basic printing methods where their name can be changed by either, or both:
+
+  * Prepending an underscore: The method will print nothing. For example: `_put(⋯)`, `_sayf(⋯)`. This is an easy way to "comment out" such a debugging invocation, and it makes it easy to search for in code too.
+
+  * Appending an underscore: The `$formatter` attribute block will not be applied. For example: `sayn_(⋯)`, `put_(⋯)`.
+
+  * Both can be combined (and nothing gets printed): `_putfn_(⋯)`, `_say_(⋯)`.
 
 If a printing method fails for some reason, a `Debugging::Tool::XCantPrint` exception will be raised.
 
@@ -82,34 +85,36 @@ This attribute is a `Block` that may be invoked by the printing methods. Its def
 
         «L-⟨line number⟩ ‹⟨message⟩› …/⟨file⟩»
 
-You can supply your own `$formatter` to the constructor. The `Block` must be declared as taking two arguments and when it gets invoked by the printing methods, the arguments that will be passed to it are the message that was constructed from the printing method's `@str` arguments and a callframe corresponding to where the printing method was called.
+You can supply your own `$formatter` to the constructor. The `Block` must be declared as taking two arguments and when it gets invoked by the printing methods, the arguments that will be passed to it are the message that was constructed from the printing method's `@elems` and a callframe corresponding to where the printing method was called.
 
-If your formatter is not interested in using either or both of those arguments, just declare them as `Any`. Here are a few examples:
+If your formatter is not interested in using either or both of those arguments, just declare them as `Any`. Here are a few illustrations:
 
-            # This formatter just returns the message without changing
-            # anything. It's like if no formatter was being applied or
-            # like if only methods ending in ‹r› were being invoked.
+            This formatter just returns the message without changing
+            anything. It's like if no formatter was being applied or like
+            if only methods whose name ends with an underscore were being
+            invoked.
         Debugging::Tool.new: 1, -> $msg, Any { $msg }
 
-            # This ignores the message to print and just prints a line
-            # with a number that increments each time a printing method is
-            # called. Not really useful, but there it is.
-        Debugging::Tool.new: 1, -> Any, Any { state $n = 0; "$n++\n" }
+            This one ignores the message argument and just returns a
+            number that increments each time a printing method is called.
+            Not really useful, but there it is.
+        Debugging::Tool.new: 1, -> Any, Any { state $n = 1; $n++ }
 
-            # Another dumb example.
+            This one uppercases any message that contains the string
+            'error' matched case insensitively.
         Debugging::Tool.new(
             1,
             sub ($msg is copy, Any) {
-                return "I don't want to see the error!" if $msg ~~ m:i/ 'error' /;
-                $msg .= uc;
+                $msg .= uc if $msg ~~ m:i/ 'error' /;
+                return $msg;
             }
         )
 
-            # This is the code of the default formatter.
+            This is the code of the default formatter.
         sub ($msg, $callframe) {
-                # The callframe 'file' annotation sometimes
-                # appends the parenthesized name of the module to
-                # the file name, so we remove it here.
+                The callframe 'file' annotation sometimes
+                appends the parenthesized name of the module to
+                the file name, so we remove it here.
             (my $filename = $callframe.file) ~~ s/ \s+ '(' \S+ ')' $//;
             sprintf(
                 "L-%-5d ‹%s› …/%s",
@@ -122,7 +127,7 @@ If your formatter is not interested in using either or both of those arguments, 
 Examples
 --------
 
-This first example presumes that the `DEBUGGING_TOOL_TO` envvar is set to `/dev/pts/8` and that the code is in a file named `wip.raku`: Printing to a given terminal window can be useful when you don't want the debugging messages to be interleaved with your program's actual output. It's the approach I use most of the time with this module:
+This first example presumes that the `DEBUGGING_TOOL_TO` envvar is set to `/dev/pts/8` and that the code is in a file named `wip.raku`:
 
         use Debugging::Tool;
         my $dt = Debugging::Tool.new;
@@ -131,24 +136,24 @@ This first example presumes that the `DEBUGGING_TOOL_TO` envvar is set to `/dev/
             # «L-6   ‹The value of $x is 42› …/wip.raku␤»
         $dt.put: 'The value of $x is ', 6 * 7;
 
-This one makes the printing methods output to STDOUT and uses a `$formatter` that uppercases the message to print. It prints a message built with `sprintf()`:
+This one makes the printing methods output to STDOUT and uses a `$formatter` that uppercases the message to print. It will print a message built with `sprintf()`:
 
         use Debugging::Tool;
         my $dt = Debugging::Tool.new:
             1,
-            :formatter(sub ($msg, Any) {return $msg.uc ~ "\n"}),
+            :formatter(sub ($msg, Any) {return $msg.uc}),
         ;
 
             # Will print «ABC - 023␤» to STDOUT.
-        $dt.printf: "%s - %03d", 'abc', 23;
+        $dt.putf: "%s - %03d", 'abc', 23;
 
-This last example prints to STDERR a message without applying the `$formatter` and sleeps a bit after printing it:
+This last example will print to STDERR a message without applying the `$formatter` and will sleep a bit after printing it:
 
         use Debugging::Tool;
         my $dt = Debugging::Tool.new: 2;
 
             # Prints «Hiya.␤» to STDERR, then sleeps for 1.5 seconds.
-        $dt.sayr: :s(1.5), 'Hiya.';
+        $dt.put_: :s(1.5), 'Hiya.';
 
 AUTHOR
 ======
