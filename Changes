@@ -1,5 +1,10 @@
 Revision history for Debugging-Tool
 
+0.3.0 2025-01-05T12:08:50-05:00
+    - Fixed tests so that they (accidentally, my mistake in my
+      development environment) rely no more on having the lib/ directory
+      found via the RAKULIB envvar.
+
 0.2.0 2024-08-03T11:55:19-04:00
     - Completely reworked the printing methods. Simpler, more logical,
       easier to understand, remember, and use.
