@@ -3,6 +3,12 @@ use Test::Selector;
 use File::Temp;
 
 # --------------------------------------------------------------------
+
+my $lib-dir = $?FILE.IO.dirname ~ '/../lib';
+
+    # Used here in Q:f:… constructs.
+sub f {$^a}
+
 sub run-code ($code-fName) {
     return run $*EXECUTABLE-NAME, $code-fName, :err, :out;
 }
@@ -14,10 +20,10 @@ sub tcase (
     $expec is copy,
 ) {
     t $test-id => {
-        my $invoc = "\$dt.$method: 'msg %s %d', Baz.new, '42';";
         my ($code-fName, $code-fHandle) = tempfile;
-       # note "RAKULIB <%*ENV<RAKULIB>>";
-        $code-fHandle.spurt(q:to/EoC/ ~ $invoc)
+        my $invoc = "\$dt.$method: 'msg %s %d', Baz.new, '42';";
+        $code-fHandle.spurt(Q:f:to/EoC/ ~ $invoc)
+            &f("use lib '$lib-dir';")
             use Debugging::Tool;
             my $dt = Debugging::Tool.new: 1;
             class Baz {
@@ -33,10 +39,10 @@ sub tcase (
     }
 }
 
-tcase 'p1', 'put',     "L-7     ‹msg %s %dBaz42› …/fName\n";
-tcase 'p2', 'putn',    "L-7     ‹msg %s %dBaz42› …/fName";
-tcase 'p3', 'putf',    "L-7     ‹msg Baz 42› …/fName\n";
-tcase 'p4', 'putfn',   "L-7     ‹msg Baz 42› …/fName";
+tcase 'p1', 'put',     "L-8     ‹msg %s %dBaz42› …/fName\n";
+tcase 'p2', 'putn',    "L-8     ‹msg %s %dBaz42› …/fName";
+tcase 'p3', 'putf',    "L-8     ‹msg Baz 42› …/fName\n";
+tcase 'p4', 'putfn',   "L-8     ‹msg Baz 42› …/fName";
 tcase 'p5', '_put',    '';
 tcase 'p6', '_putn',   '';
 tcase 'p7', '_putf',   '';
@@ -50,10 +56,10 @@ tcase 'pf', '_putn_',  '';
 tcase 'pg', '_putf_',  '';
 tcase 'ph', '_putfn_', '';
 
-tcase 's1', 'say',     "L-7     ‹msg %s %dbAZ42› …/fName\n";
-tcase 's2', 'sayn',    "L-7     ‹msg %s %dbAZ42› …/fName";
-tcase 's3', 'sayf',    "L-7     ‹msg bAZ 42› …/fName\n";
-tcase 's4', 'sayfn',   "L-7     ‹msg bAZ 42› …/fName";
+tcase 's1', 'say',     "L-8     ‹msg %s %dbAZ42› …/fName\n";
+tcase 's2', 'sayn',    "L-8     ‹msg %s %dbAZ42› …/fName";
+tcase 's3', 'sayf',    "L-8     ‹msg bAZ 42› …/fName\n";
+tcase 's4', 'sayfn',   "L-8     ‹msg bAZ 42› …/fName";
 tcase 's5', '_say',    '';
 tcase 's6', '_sayn',   '';
 tcase 's7', '_sayf',   '';
@@ -71,9 +77,10 @@ tcase 'sh', '_sayfn_', '';
 t t2 => {
     my ($code-fName, $code-fHandle) = tempfile;
     my ($out-fName, Any) = tempfile;
-    $code-fHandle.spurt: q:c:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
-        my $dt = Debugging::Tool.new: {"'$out-fName'"};
+        my $dt = Debugging::Tool.new: '&f($out-fName)';
         $dt.put: 'A message.';
     EoC
     my $proc = run-code $code-fName;
@@ -81,14 +88,15 @@ t t2 => {
     is $proc.err.slurp, '';
     is
         $out-fName.IO.slurp,
-        "L-3     ‹A message.› …/{$code-fName.IO.basename}\n",
+        "L-4     ‹A message.› …/{$code-fName.IO.basename}\n",
     ;
 }
 
 # --------------------------------------------------------------------
 t t3 => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new;
         $dt.put: 'Unprinted message.';
@@ -101,7 +109,8 @@ t t3 => {
 # --------------------------------------------------------------------
 t t5 => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         %*ENV<DEBUGGING_TOOL_TO> = 2;
         my $dt = Debugging::Tool.new;
@@ -110,7 +119,7 @@ t t5 => {
     my $proc = run-code $code-fName;
     is
         $proc.err.slurp,
-        "L-4     ‹A message.› …/{$code-fName.IO.basename}\n",
+        "L-5     ‹A message.› …/{$code-fName.IO.basename}\n",
     ;
     is $proc.out.slurp, '';
 }
@@ -118,7 +127,8 @@ t t5 => {
 # --------------------------------------------------------------------
 t t6 => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new:
             1,
@@ -134,7 +144,8 @@ t t6 => {
 # --------------------------------------------------------------------
 t t7 => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new:
             1,
@@ -150,7 +161,8 @@ t t7 => {
 # --------------------------------------------------------------------
 t t8 => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new:
             1,
@@ -162,14 +174,15 @@ t t8 => {
         $dt.putn: 'A message.';
     EoC
     my $proc = run-code $code-fName;
-    is $proc.out.slurp, "{$code-fName.IO.basename}, L-9: A m";
+    is $proc.out.slurp, "{$code-fName.IO.basename}, L-10: A m";
     is $proc.err.slurp, '';
 }
 
 # --------------------------------------------------------------------
 t t9 => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new(
             1,
@@ -184,14 +197,15 @@ t t9 => {
         $dt.putn;
     EoC
     my $proc = run-code $code-fName;
-    is $proc.out.slurp, "0 L-10 • 1 L-9 • 2 L-9 • 3 L-12 • ";
+    is $proc.out.slurp, "0 L-11 • 1 L-10 • 2 L-10 • 3 L-13 • ";
     is $proc.err.slurp, '';
 }
 
 # --------------------------------------------------------------------
 t ta => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         CATCH {
             when Debugging::Tool::XCantPrint {
@@ -209,7 +223,8 @@ t ta => {
 # --------------------------------------------------------------------
 t tb => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new:
             1,
@@ -229,7 +244,8 @@ t tb => {
 # --------------------------------------------------------------------
 t tc => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new: 1;
         $dt.putn_: 'a';
@@ -248,7 +264,8 @@ t tc => {
 # --------------------------------------------------------------------
 t td => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new:
             1,
@@ -264,7 +281,8 @@ t td => {
 # --------------------------------------------------------------------
 t te => {
     my ($code-fName, $code-fHandle) = tempfile;
-    $code-fHandle.spurt: q:to/EoC/;
+    $code-fHandle.spurt: Q:f:to/EoC/;
+        &f("use lib '$lib-dir';")
         use Debugging::Tool;
         my $dt = Debugging::Tool.new: 1;
         $dt.putfn: "a %d", 42;
@@ -272,7 +290,7 @@ t te => {
     my $proc = run-code $code-fName;
     is
         $proc.out.slurp,
-        "L-3     ‹a 42› …/{$code-fName.IO.basename}",
+        "L-4     ‹a 42› …/{$code-fName.IO.basename}",
     ;
     is $proc.err.slurp, '';
 }
