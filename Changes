@@ -1,5 +1,8 @@
 Revision history for Debugging-Tool
 
+0.3.1 2025-05-18T17:35:27-04:00
+    - Simplify code that runs tests.
+
 0.3.0 2025-01-05T12:08:50-05:00
     - Fixed tests so that they (accidentally, my mistake in my
       development environment) rely no more on having the lib/ directory
