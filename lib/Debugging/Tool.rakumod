@@ -56,7 +56,7 @@ method !output ($meth-name, $sleep, *@elems) {
 
     $msg = $!formatter($msg, callframe(2)) unless $meth-name ~~ / '_' $ /;
     $msg ~= "\n" unless $meth-name ~~ / 'n' /;
-    
+
     try $!dst-io.spurt: :append, $msg;
     XCantPrint.new(excep => $!).throw if $!;
 
